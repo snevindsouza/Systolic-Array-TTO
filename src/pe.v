@@ -1,5 +1,5 @@
 //============================================================================
-// pe.v -- Processing element for a 4x4 output-stationary systolic array
+// pe.v -- Processing element for an N x N output-stationary systolic array
 //
 // Verilog-2001 only. Asynchronous active-low reset.
 //
@@ -15,73 +15,75 @@
 //   A_OUT <= A_IN
 //   B_OUT <= B_IN
 //
-// Note that the MAC consumes the *incoming* (combinational) operands in the
-// same cycle in which it registers them for forwarding.  A value therefore
-// takes exactly one cycle per hop, which is what the skewed injection
-// schedule in systolic_array.v assumes.
+// The MAC consumes the *incoming* (combinational) operands in the same cycle
+// in which it registers them for forwarding.  A value therefore takes exactly
+// one cycle per hop, which is what the skewed injection schedule in
+// systolic_array.v assumes.  Do not change this to ACC <= ACC + A_REG * B_REG:
+// that would make each hop cost two cycles for the operand but one for the
+// forwarded copy, and the derived skew would no longer line up the k indices.
 //
 // Datapath  : PROD, ACC_REG, A_REG, B_REG
 // Control   : CLR (synchronous accumulator/pipeline clear), EN (MAC enable)
 //
-// ACCW notes:
-//   * ACCW must be in the range 18..32.
-//   * 18 bits is the provably exact width for 4x4 8-bit unsigned inputs:
-//     max C element = 4 * 255 * 255 = 260_100 < 2**18 = 262_144, so the
-//     accumulator can never overflow.  ACCW = 32 is the default because the
-//     project specification asks for a 32-bit accumulator; the upper 14 bits
-//     are always zero and synthesis will not remove them (they are visible on
-//     ACC_OUT), so ACCW = 18 is the recommended area optimisation.
+// Parameters
+//   DW    operand width (unsigned).  Product width is exactly 2*DW.
+//   ACCW  accumulator width.  Must be >= 2*DW + ceil(log2(N)) for the
+//         accumulation to be exact; see systolic_array.v, which computes the
+//         exact value and passes it down.
 //============================================================================
 
 module PE #(
+  parameter DW   = 8,
   parameter ACCW = 32
 ) (
   input  wire             CLK,
   input  wire             RESET_N,   // asynchronous, active low
   input  wire             CLR,       // synchronous clear of ACC and pipeline
   input  wire             EN,        // MAC / forward enable
-  input  wire [7:0]       A_IN,
-  input  wire [7:0]       B_IN,
-  output wire [7:0]       A_OUT,
-  output wire [7:0]       B_OUT,
+  input  wire [DW-1:0]    A_IN,
+  input  wire [DW-1:0]    B_IN,
+  output wire [DW-1:0]    A_OUT,
+  output wire [DW-1:0]    B_OUT,
   output wire [ACCW-1:0]  ACC_OUT
 );
+
+  localparam PW = 2 * DW;            // exact product width
 
   // --------------------------------------------------------------------
   // Datapath registers
   // --------------------------------------------------------------------
-  reg  [7:0]      A_REG;
-  reg  [7:0]      B_REG;
+  reg  [DW-1:0]   A_REG;
+  reg  [DW-1:0]   B_REG;
   reg  [ACCW-1:0] ACC_REG;
 
   // --------------------------------------------------------------------
-  // Unsigned 8 x 8 -> 16 multiply.
-  // Both operands are unsigned nets, and the product is assigned to an
-  // explicitly 16-bit net, so the multiply is evaluated at 16 bits.  The
-  // maximum product 255*255 = 65_025 fits in 16 bits, so there is no
-  // truncation and no sign extension anywhere in this expression.
+  // Unsigned DW x DW -> 2*DW multiply.
+  // Both operands are unsigned nets and the product is assigned to an
+  // explicitly 2*DW-bit net, so the multiply is evaluated at 2*DW bits.  The
+  // maximum product (2^DW - 1)^2 fits in 2*DW bits, so there is no truncation
+  // and no sign extension anywhere in this expression.
   // --------------------------------------------------------------------
-  wire [15:0]     PROD;
+  wire [PW-1:0]   PROD;
   wire [ACCW-1:0] PROD_EXT;
 
   assign PROD     = A_IN * B_IN;
-  assign PROD_EXT = PROD;            // zero extension to ACCW (ACCW >= 18)
+  assign PROD_EXT = PROD;            // zero extension to ACCW (ACCW >= PW)
 
   // --------------------------------------------------------------------
   // Sequential MAC.  Nonblocking assignments only.
   // --------------------------------------------------------------------
   always @(posedge CLK or negedge RESET_N) begin
     if (!RESET_N) begin
-      A_REG   <= 8'h00;
-      B_REG   <= 8'h00;
+      A_REG   <= {DW{1'b0}};
+      B_REG   <= {DW{1'b0}};
       ACC_REG <= {ACCW{1'b0}};
     end
     else if (CLR) begin
       // Clearing the forwarding registers as well as the accumulator is
       // mandatory: at compute step T = 0 the interior PEs must see a zero
       // operand rather than a stale value left over from a previous run.
-      A_REG   <= 8'h00;
-      B_REG   <= 8'h00;
+      A_REG   <= {DW{1'b0}};
+      B_REG   <= {DW{1'b0}};
       ACC_REG <= {ACCW{1'b0}};
     end
     else if (EN) begin
