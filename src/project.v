@@ -70,7 +70,7 @@ module tt_um_systolic_mm (
   // result element is at least two bytes on the readout port.  Anything wider
   // is provably dead logic; anything narrower overflows.
   //--------------------------------------------------------------------------
-  localparam N    = 2;
+  localparam N    = 3;
   localparam DW   = 4;
   localparam ACCW = 9;       // exact: 2 * 15 * 15 = 450 < 2^9
 
