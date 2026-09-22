@@ -40,16 +40,47 @@ module tt_um_systolic_mm (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  // ACCW = 32 matches the specified datapath.  Set to 18 for the
-  // area-optimised build; the external protocol is unchanged because the
-  // readout always presents 4 zero-extended bytes per element.
-  localparam ACCW = 32;
+  //--------------------------------------------------------------------------
+  // CONFIGURATION -- this is the only place the size is chosen.
+  // Whatever is set here MUST match the tile count in info.yaml.
+  //
+  // A measured sky130 synthesis run of N=4 DW=8 ACCW=32 came out at
+  // 123 248 um2 = 774 % utilisation on a 1x1 tile.  area_model.py is calibrated
+  // against that run (-0.4 % error) and gives, for a 1x1/1x2 budget:
+  //
+  //   N  DW  ACCW  PEs  area um2  cycles  1x1    1x2    note
+  //   2   2    9     4      6 250     24   39 %   20 %  operands 0..3, toy
+  //   2   3    9     4      7 700     24   49 %   24 %  smallest 1x1 candidate
+  //   2   4    9     4      9 700     24   61 %   30 %  <-- selected
+  //   2   5   11     4     12 800     24   80 %   40 %
+  //   2   6   13     4     16 400     24  103 %   52 %
+  //   3   3    9     9     16 700     47  105 %   52 %  9 PEs, 3x3 mesh
+  //   3   4   10     9     22 000     47  138 %   69 %
+  //   4   4   10    16     38 700     78  243 %  122 %  full 4x4, needs 3x2
+  //   4   8   32    16    122 800    110  774 %  387 %  as originally submitted
+  //
+  // Selected N=2 DW=4 ACCW=9: 30 % on 1x2, which survives even a 1.8x model
+  // error.  The same configuration is 61 % on a 1x1 tile, so 1x1 is worth
+  // trying -- change info.yaml to tiles: "1x1" and nothing here needs to move.
+  // Note the multiplier coefficient was fitted at DW=8, and small multipliers
+  // carry proportionally more overhead than DW^2 predicts, so treat the 4-bit
+  // areas as a floor.  See area_analysis.md.
+  //
+  // ACCW must be the exact width 2*DW + ceil(log2(N)), floored at 9 so that a
+  // result element is at least two bytes on the readout port.  Anything wider
+  // is provably dead logic; anything narrower overflows.
+  //--------------------------------------------------------------------------
+  localparam N    = 2;
+  localparam DW   = 4;
+  localparam ACCW = 9;       // exact: 2 * 15 * 15 = 450 < 2^9
 
   wire [7:0] DATA_OUT;
   wire       BUSY;
   wire       DONE;
 
   systolic_array #(
+    .N        (N),
+    .DW       (DW),
     .ACCW     (ACCW)
   ) U_MM (
     .CLK      (clk),
