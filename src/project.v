@@ -40,46 +40,51 @@ module tt_um_systolic_mm (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  //--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
   // CONFIGURATION -- this is the only place the size is chosen.
   // Whatever is set here MUST match the tile count in info.yaml.
   //
-  // A measured sky130 synthesis run of N=4 DW=8 ACCW=32 came out at
-  // 123 248 um2 = 774 % utilisation on a 1x1 tile.  area_model.py is calibrated
-  // against that run (-0.4 % error) and gives, for a 1x1/1x2 budget:
+  //   MN = matrix dimension (the problem size)
+  //   PN = PE array dimension (the parallelism).  Must divide MN.
   //
-  //   N  DW  ACCW  PEs  area um2  cycles  1x1    1x2    note
-  //   2   2    9     4      6 250     24   39 %   20 %  operands 0..3, toy
-  //   2   3    9     4      7 700     24   49 %   24 %  smallest 1x1 candidate
-  //   2   4    9     4      9 700     24   61 %   30 %  <-- selected
-  //   2   5   11     4     12 800     24   80 %   40 %
-  //   2   6   13     4     16 400     24  103 %   52 %
-  //   3   3    9     9     16 700     47  105 %   52 %  9 PEs, 3x3 mesh
-  //   3   4   10     9     22 000     47  138 %   69 %
-  //   4   4   10    16     38 700     78  243 %  122 %  full 4x4, needs 3x2
-  //   4   8   32    16    122 800    110  774 %  387 %  as originally submitted
+  // TWO measured sky130 runs anchor this, both fully parallel (PN = MN = 4):
+  //   DW=8 ACCW=32 -> 123 248 um2, 774.219 % on 1x1
+  //   DW=4 ACCW=10 ->  37 014 um2, 116.257 % on 1x2
+  // area_model.py is fitted to both within 0.8 %, and gives for a 4x4 product
+  // in 1x2 tiles (core 31 838 um2):
   //
-  // Selected N=2 DW=4 ACCW=9: 30 % on 1x2, which survives even a 1.8x model
-  // error.  The same configuration is 61 % on a 1x1 tile, so 1x1 is worth
-  // trying -- change info.yaml to tiles: "1x1" and nothing here needs to move.
-  // Note the multiplier coefficient was fitted at DW=8, and small multipliers
-  // carry proportionally more overhead than DW^2 predicts, so treat the 4-bit
-  // areas as a floor.  See area_analysis.md.
+  //   PN  DW  ACCW  PEs  pass  area um2  cycles  1x2 util
+  //    4   4   10    16    1      36 800     79    116 %  <- does not fit
+  //    4   3    9    16    1      27 700     79     87 %  tight, operands 0..7
+  //    4   2    9    16    1      22 000     79     69 %  operands 0..3, toy
+  //    2   4   10     4    4      20 100     96     63 %  <-- selected
+  //    2   3    9     4    4      16 500     96     52 %  safe fallback
+  //    1   4   10     1   16      14 900    148     47 %  not systolic
   //
-  // ACCW must be the exact width 2*DW + ceil(log2(N)), floored at 9 so that a
-  // result element is at least two bytes on the readout port.  Anything wider
-  // is provably dead logic; anything narrower overflows.
+  // Keeping 16 parallel multipliers forces DW <= 2, which is not a useful
+  // matrix multiplier.  PN = 2 computes the SAME 4x4 product on 4 PEs over 4
+  // passes and keeps 4-bit operands, for 1.8x less area.  That trade is nearly
+  // free because the design is I/O bound: compute is 29 of 96 cycles either
+  // way, and the byte-serial port sets the throughput.
+  //
+  // If routing struggles at 63 %, set DW = 3 and ACCW = 9 for 52 %.  ACCW must
+  // always be the exact width 2*DW + ceil(log2(MN)) -- anything wider is
+  // provably dead logic, anything narrower overflows -- floored at 9 so a
+  // result element is at least two bytes on the readout port.
+  // See area_analysis.md.
   //--------------------------------------------------------------------------
-  localparam N    = 4;
+  localparam MN   = 4;       // 4x4 matrix product
+  localparam PN   = 2;       // on a 2x2 PE array, 4 passes
   localparam DW   = 4;
-  localparam ACCW = 9;       // exact: 2 * 15 * 15 = 450 < 2^9
+  localparam ACCW = 10;      // exact: 4 * 15 * 15 = 900 < 2^10
 
   wire [7:0] DATA_OUT;
   wire       BUSY;
   wire       DONE;
 
   systolic_array #(
-    .N        (N),
+    .MN       (MN),
+    .PN       (PN),
     .DW       (DW),
     .ACCW     (ACCW)
   ) U_MM (
