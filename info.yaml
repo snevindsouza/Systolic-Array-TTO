@@ -1,9 +1,9 @@
 # Tiny Tapeout project information
 project:
-  title:        "2×2 Systolic Matrix Multiplier"      # Project title
+  title:        "Systolic Array - 4x4 Matrix Multiplier"      # Project title
   author:       "Snevin Leoneel Dsouza"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "Output-stationary systolic array computing C = A*B for 2x2 matrices of 4-bit unsigned integers, with a byte-serial load/compute/read interface"      # One line description of what your project does
+  description:  "Output-stationary systolic array computing C = A*B for 4x4 matrices of 4-bit unsigned integers, with a byte-serial load/compute/read interface"      # One line description of what your project does
   language:     "Verilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
   clock_hz:     50000000       # Clock frequency in Hz (or 0 if not applicable)
 
