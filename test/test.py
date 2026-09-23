@@ -158,11 +158,22 @@ async def start_and_wait(dut, limit=8 * EXP_LATENCY):
 
 
 async def read_result(dut):
-    """Hold READ for RDBYTES cycles and reassemble the little-endian elements."""
+    """Hold READ for RDBYTES cycles and reassemble the little-endian elements.
+
+    This is the one helper whose correctness depends on where in the clock
+    period it starts, so it synchronises itself rather than trusting the caller.
+    DATA_OUT is combinational from RD_PTR, and RD_PTR advances on every rising
+    edge for which READ was high.  Byte 0 is therefore only visible *before* the
+    first such edge: entering this function mid-period would burn that edge and
+    silently shift the whole stream one byte early.
+    """
+    dut.uio_in.value = 0
+    await RisingEdge(dut.clk)              # land just after a rising edge
+
     dut.uio_in.value = 1 << READ
     raw = []
     for _ in range(RDBYTES):
-        await FallingEdge(dut.clk)         # mid-cycle: DATA_OUT settled
+        await FallingEdge(dut.clk)         # mid-period: RD_PTR still points here
         raw.append(_int(dut.uo_out, "uo_out"))
         await RisingEdge(dut.clk)          # this edge advances the pointer
     dut.uio_in.value = 0
