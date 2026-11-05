@@ -1,4 +1,3 @@
-//============================================================================
 // systolic_array.v -- MN x MN unsigned integer matrix multiply accelerator,
 //                     computed on a PN x PN output-stationary systolic array.
 //
@@ -77,7 +76,6 @@
 //            1 + NPASS*(T_LAST+2) cycles later.
 //   Read   : hold READ for MN*MN*OBYTES consecutive cycles; DATA_OUT presents
 //            each C element little-endian, OBYTES bytes per element.
-//============================================================================
 
 module systolic_array #(
   parameter MN   = 4,        // matrix dimension (problem size)
