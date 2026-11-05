@@ -39,8 +39,6 @@ module tt_um_systolic_mm (
     input  wire       clk,      // clock
     input  wire       rst_n     // reset_n - low to reset
 );
-
-//--------------------------------------------------------------------------
   // CONFIGURATION -- this is the only place the size is chosen.
   // Whatever is set here MUST match the tile count in info.yaml.
   //
@@ -72,7 +70,6 @@ module tt_um_systolic_mm (
   // provably dead logic, anything narrower overflows -- floored at 9 so a
   // result element is at least two bytes on the readout port.
   // See area_analysis.md.
-  //--------------------------------------------------------------------------
   localparam MN   = 4;       // 4x4 matrix product
   localparam PN   = 2;       // on a 2x2 PE array, 4 passes
   localparam DW   = 4;
