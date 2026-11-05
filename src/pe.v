@@ -1,4 +1,3 @@
-//============================================================================
 // pe.v -- Processing element for an N x N output-stationary systolic array
 //
 // Verilog-2001 only. Asynchronous active-low reset.
@@ -30,7 +29,6 @@
 //   ACCW  accumulator width.  Must be >= 2*DW + ceil(log2(N)) for the
 //         accumulation to be exact; see systolic_array.v, which computes the
 //         exact value and passes it down.
-//============================================================================
 
 module PE #(
   parameter DW   = 8,
@@ -49,29 +47,23 @@ module PE #(
 
   localparam PW = 2 * DW;            // exact product width
 
-  // --------------------------------------------------------------------
   // Datapath registers
-  // --------------------------------------------------------------------
   reg  [DW-1:0]   A_REG;
   reg  [DW-1:0]   B_REG;
   reg  [ACCW-1:0] ACC_REG;
 
-  // --------------------------------------------------------------------
   // Unsigned DW x DW -> 2*DW multiply.
   // Both operands are unsigned nets and the product is assigned to an
   // explicitly 2*DW-bit net, so the multiply is evaluated at 2*DW bits.  The
   // maximum product (2^DW - 1)^2 fits in 2*DW bits, so there is no truncation
   // and no sign extension anywhere in this expression.
-  // --------------------------------------------------------------------
   wire [PW-1:0]   PROD;
   wire [ACCW-1:0] PROD_EXT;
 
   assign PROD     = A_IN * B_IN;
   assign PROD_EXT = PROD;            // zero extension to ACCW (ACCW >= PW)
 
-  // --------------------------------------------------------------------
   // Sequential MAC.  Nonblocking assignments only.
-  // --------------------------------------------------------------------
   always @(posedge CLK or negedge RESET_N) begin
     if (!RESET_N) begin
       A_REG   <= {DW{1'b0}};
