@@ -1,12 +1,11 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
 
-# Systolic Array — 4×4 Matrix Multiplier
+# Systolic Array - 4×4 Matrix Multiplier
 
 A Tiny Tapeout digital design that computes the product of two **4×4 matrices of unsigned 4-bit integers** using a **2×2 output-stationary systolic array**. The four processing elements are reused across four computation passes, allowing the complete 4×4 operation to fit the project's **1×2 Tiny Tapeout tile allocation**.
 
-\[
-C = A \times B, \qquad C_{ij} = \sum_{k=0}^{3} A_{ik}B_{kj}
-\]
+<img width="303" height="79" alt="image" src="https://github.com/user-attachments/assets/cd44bca6-03c6-469a-87e6-95bbb09b2464" />
+
 
 The result is exact: each output element is 10 bits wide, with no truncation, saturation, or overflow for legal operands.
 
@@ -28,15 +27,13 @@ The result is exact: each output element is 10 bits wide, with no truncation, sa
 
 The maximum output value is:
 
-\[
-C_{max} = 4 \times 15 \times 15 = 900 = 0x384
-\]
+<img width="316" height="42" alt="image" src="https://github.com/user-attachments/assets/9081473b-2809-4587-a2dd-2cc02d039181" />
+
 
 Ten bits are sufficient to represent this value exactly. The accumulator width is derived from the operand width and matrix dimension:
 
-\[
-ACCW = 2 \times DW + \lceil \log_2(MN) \rceil = 10
-\]
+<img width="355" height="41" alt="image" src="https://github.com/user-attachments/assets/bfd01627-96fc-4a21-aa46-65599d93a7df" />
+
 
 ## Architecture
 
@@ -165,73 +162,6 @@ The read pointer wraps after the final byte, allowing the result to be read agai
 └── README.md
 ```
 
-## Run the RTL regression
-
-### Prerequisites
-
-- Python 3.11 (the GitHub Actions workflow uses Python 3.11)
-- Icarus Verilog (`iverilog` and `vvp`)
-- `make`
-- Python packages listed in `test/requirements.txt` (includes cocotb)
-
-### Install dependencies and simulate
-
-From the repository root:
-
-```bash
-cd test
-python -m pip install -r requirements.txt
-make clean
-make -B
-```
-
-The test Makefile selects Icarus Verilog by default. A successful cocotb run writes `results.xml` and the FST waveform `tb.fst` in the `test/` directory.
-
-### View the waveform
-
-From the `test/` directory:
-
-```bash
-gtkwave tb.fst
-```
-
-Alternatively, open the file with [Surfer](https://surfer-project.org/):
-
-```bash
-surfer tb.fst
-```
-
-### Gate-level simulation
-
-Gate-level simulation requires a completed Tiny Tapeout hardening run and its generated gate-level netlist. Place the generated netlist at `test/gate_level_netlist.v`, make sure `PDK_ROOT` points to the installed Sky130 PDK, and run:
-
-```bash
-cd test
-make clean
-make -B GATES=yes
-```
-
-This is separate from the default RTL simulation; it cannot run until the gate-level netlist and PDK files are available.
-
-## Verification coverage
-
-The repository's cocotb suite checks:
-
-- Reset behavior and zero result after reset.
-- Identity matrix multiplication (`A = I`, therefore `C = B`).
-- Zero-A and zero-B cases.
-- All-ones operands.
-- Maximum operand values (`15 × 15` accumulation), verifying the expected maximum result of `900` and the 10-bit accumulator range.
-- A worked numerical example and input-bit masking behavior.
-- Sixteen randomized matrix-pair transactions against a Python reference model.
-- Fixed `START`-to-`DONE` latency.
-- Re-reading results and read-pointer wraparound.
-- Repeated `START` without reloading, confirming that accumulators are cleared.
-- Reloading only A while retaining B, plus recovery from an aborted load burst.
-- Asynchronous reset during computation.
-
-A GitHub Actions workflow at `.github/workflows/test.yaml` runs the cocotb RTL regression on pushes and manual dispatches. The workflow also uploads the test result XML and waveform as artifacts.
-
 ## Configuration notes
 
 The Tiny Tapeout wrapper in `src/project.v` is the configuration point for `MN`, `PN`, `DW`, and `ACCW`. The `tiles` field in `info.yaml` must remain consistent with the selected hardware configuration. The current checked-in settings are `MN=4`, `PN=2`, `DW=4`, `ACCW=10`, and `tiles: "1x2"`.
@@ -253,13 +183,11 @@ If changing the parameters:
 - **HDL:** Verilog
 - **Tiny Tapeout top module:** `tt_um_systolic_mm`
 - **Tile allocation:** `1×2`
-- **Repository:** <https://github.com/snevindsouza/Systolic-Array-TTO>
 
 ## References
 
 - [Tiny Tapeout](https://tinytapeout.com/)
 - [Tiny Tapeout HDL testing guide](https://tinytapeout.com/hdl/testing/)
-- [Repository RTL](src/)
 - [Testbench instructions](test/README.md)
 - [Tiny Tapeout project metadata](info.yaml)
-)
+
