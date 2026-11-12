@@ -98,7 +98,7 @@ module tt_um_systolic_mm (
   );
 
   assign uo_out  = DATA_OUT;
-  assign uio_out = {2'b00, DONE, BUSY, 4'b0000};
+  assign uio_out = {1'b0, clk, DONE, BUSY, 4'b0000};
   assign uio_oe  = 8'b1111_0000;
 
   // ena is documented by Tiny Tapeout as always 1 for the selected design;
